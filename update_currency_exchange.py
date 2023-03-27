@@ -7,8 +7,8 @@ import numpy as np
 from time import perf_counter
 
 
-def create_table_currency_exchange(db_path:str = '',table_name:str = '',only_df:bool = False):
-    """ Create an empty table in a SQL Lite DB with a column for each currency available in the API
+def create_table_currency_exchange(db_path:str = None,table_name:str = None,only_df:bool = False):
+    """ Create an empty table in a SQLite DB with a column for each currency available in the API
     * API: https://github.com/fawazahmed0/currency-api
     * If only_df == True return the df without creating a table in the db
     """
@@ -24,7 +24,7 @@ def create_table_currency_exchange(db_path:str = '',table_name:str = '',only_df:
     cols_names = [name + '_' + code for name,code in zip(currency_code_list,currency_name_list)]
     
     # Create empty df
-    empty_currency_df = pd.DataFrame(columns = ['exchange_date'] +cols_names)
+    empty_currency_df = pd.DataFrame(columns = ['exchange_date'] + cols_names)
     if only_df == True:
         return empty_currency_df
     
@@ -65,12 +65,15 @@ def last_exchange_date(db_path:str,table_name:str):
     else:
         last_update_date = datetime.strptime(last_update_date_str, '%Y-%m-%d')
     
+    print(f'Last date updated in db: {last_update_date}')
     return last_update_date
 
 
 def get_currency_exchange(db_path:str,table_name:str,based_currency:str,since_date:datetime = None):
-    """ Return a one row DataFrame with all the 
-    based_currency -- may be 'usd' or 'eur'
+    """ Return a DataFrame with all exchange rates for 273 currencies 
+
+    based_currency -- may be any currency code ( although the tables are created only for 'usd' and 'eur')
+    since_date -- df will have a row for each day from "since date" to the current date. Default(identifies last date in db)
     """
     
     t_start = perf_counter() # time counter
@@ -81,7 +84,7 @@ def get_currency_exchange(db_path:str,table_name:str,based_currency:str,since_da
     apiVersion = '1'
     endpoint = f'currencies/{based_currency}.json'
 
-    currency_df = create_table_currency_exchange(only_df = True)
+    currency_df = create_table_currency_exchange(only_df = True) # "Base df" with columns only
     row_counter = 0
     request_date = None
     while request_date != datetime.today().strftime('%Y-%m-%d'):
@@ -118,7 +121,7 @@ def get_currency_exchange(db_path:str,table_name:str,based_currency:str,since_da
     return currency_df
 
 
-def insert_df_sql_lite(df:pd.DataFrame, db_path:str,table_name:str):
+def insert_df_sqlite(df:pd.DataFrame, db_path:str,table_name:str):
     """ Insert a df into the specified db and table
     """
     
@@ -133,7 +136,7 @@ def insert_df_sql_lite(df:pd.DataFrame, db_path:str,table_name:str):
     conn_lite.close()
     
     
-def main(create_tables:bool = False):
+def etl_pipeline(create_tables:bool = False):
     """ ETL pipeline to update db
     """ 
 
@@ -152,21 +155,23 @@ def main(create_tables:bool = False):
         db_path= 'currency_exchange_db.db',
         table_name = 'dollar_based_currency',
         based_currency= 'usd')
-    insert_df_sql_lite(
-        df = dollar_currency_df,
-        db_path = 'currency_exchange_db.db',
-        table_name = 'dollar_based_currency')
+    if len(dollar_currency_df) > 0: # Update only if there are new values
+        insert_df_sqlite(
+            df = dollar_currency_df,
+            db_path = 'currency_exchange_db.db',
+            table_name = 'dollar_based_currency')
     
     # Returns a df with all exchange rates since the last db update and update db (Euro based)
     euro_currency_df = get_currency_exchange(
         db_path= 'currency_exchange_db.db',
         table_name = 'euro_based_currency',
         based_currency= 'eur')
-    insert_df_sql_lite(
-        df = euro_currency_df,
-        db_path = 'currency_exchange_db.db',
-        table_name = 'euro_based_currency')
+    if len(euro_currency_df) > 0: # Update only if there are new values
+        insert_df_sqlite(
+            df = euro_currency_df,
+            db_path = 'currency_exchange_db.db',
+            table_name = 'euro_based_currency')
 
 
 if __name__ == '__main__':
-    main(create_tables = True)
+    etl_pipeline()
