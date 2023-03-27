@@ -81,6 +81,10 @@ def get_currency_exchange(db_path:str,table_name:str,based_currency:str,since_da
     if since_date == None:
         since_date = last_exchange_date(db_path,table_name)
     
+    if since_date.strftime('%Y-%m-%d') == datetime.today().strftime('%Y-%m-%d'):
+        print(f'Last Date Updated equal to Today (No new Recoeds)')
+        return pd.DataFrame()
+
     apiVersion = '1'
     endpoint = f'currencies/{based_currency}.json'
 
@@ -143,35 +147,35 @@ def etl_pipeline(create_tables:bool = False):
     if create_tables == True:
         # creates a table for dollar-based exchange rates (run ony once)
         create_table_currency_exchange(
-            db_path= 'currency_exchange_db.db',
+            db_path= 'Database/currency_exchange_db.db',
             table_name = 'dollar_based_currency')
         # creates a table for euro-based exchange rates (run ony once)
         create_table_currency_exchange(
-            db_path= 'currency_exchange_db.db',
+            db_path= 'Database/currency_exchange_db.db',
             table_name = 'euro_based_currency')   
 
     # Returns a df with all exchange rates since the last db update and update db (Dollar based)
     dollar_currency_df = get_currency_exchange(
-        db_path= 'currency_exchange_db.db',
+        db_path= 'Database/currency_exchange_db.db',
         table_name = 'dollar_based_currency',
         based_currency= 'usd')
     if len(dollar_currency_df) > 0: # Update only if there are new values
         insert_df_sqlite(
             df = dollar_currency_df,
-            db_path = 'currency_exchange_db.db',
+            db_path = 'Database/currency_exchange_db.db',
             table_name = 'dollar_based_currency')
     
     # Returns a df with all exchange rates since the last db update and update db (Euro based)
     euro_currency_df = get_currency_exchange(
-        db_path= 'currency_exchange_db.db',
+        db_path= 'Database/currency_exchange_db.db',
         table_name = 'euro_based_currency',
         based_currency= 'eur')
     if len(euro_currency_df) > 0: # Update only if there are new values
         insert_df_sqlite(
             df = euro_currency_df,
-            db_path = 'currency_exchange_db.db',
+            db_path = 'Database/currency_exchange_db.db',
             table_name = 'euro_based_currency')
 
 
 if __name__ == '__main__':
-    etl_pipeline()
+    etl_pipeline(create_tables = True)
