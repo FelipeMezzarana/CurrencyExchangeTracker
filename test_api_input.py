@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime
+from datetime import datetime,timedelta
 import requests
 import os
 
@@ -34,7 +34,7 @@ class TestCurrencyRatesAPI(unittest.TestCase):
         * We are working with a SQLite db, so we just need to check if the file exists
         """
 
-        self.assertIn('currency_exchange_db.db',os.listdir(''), ('Attempt to connect to database failed'
+        self.assertIn('currency_exchange_db.db',os.listdir('Database'), ('Attempt to connect to database failed'
                                          '\nDatabase must be initialized with Docker using the file:'
                                          '\nLinkfire_data_engineer_task/database/volume/docker-compose.yaml'))
 
@@ -46,8 +46,9 @@ class TestCurrencyRatesAPI(unittest.TestCase):
 
         latest_date = self.resp.json().get('date')
         today = datetime.today().strftime(r"%Y-%m-%d")
+        today_lag1 = (datetime.today() - timedelta(days=1) ).strftime(r"%Y-%m-%d") # Sometimes "latest request" return today -1
 
-        self.assertEqual(latest_date,today)
+        self.assertIn(latest_date,[today,today_lag1])
 
 
     def test_qty_currencies(self):
