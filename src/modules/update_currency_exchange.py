@@ -2,10 +2,11 @@ import requests
 import pandas as pd
 import sqlite3
 from datetime import datetime, timedelta
-import re
 import numpy as np
 from time import perf_counter
+import logging 
 
+update_currency = logging.getLogger("update_currency_exchange.py.py")
 
 def create_table_currency_exchange(db_path:str = None,table_name:str = None,only_df:bool = False):
     """ Create an empty table in a SQLite DB with a column for each currency available in the API
@@ -18,19 +19,16 @@ def create_table_currency_exchange(db_path:str = None,table_name:str = None,only
     resp = requests.get(url_all_currencies)
     all_currencies_json = resp.json()
     
-    # Create column names: currencyCode_currencyName (in snake_case)
-    currency_code_list = list(all_currencies_json)
-    currency_name_list = [name.lower().replace(' ','_').strip() for name in  all_currencies_json.values()]
-    cols_names = [name + '_' + code for name,code in zip(currency_code_list,currency_name_list)]
-    
+    # Column names = currency_code
+    currency_code_list = list(all_currencies_json.keys())
     # Create empty df
-    empty_currency_df = pd.DataFrame(columns = ['exchange_date'] + cols_names)
-    if only_df == True:
+    empty_currency_df = pd.DataFrame(columns = ['exchange_date'] + currency_code_list)
+    if only_df:
         return empty_currency_df
     
     # Define the data types for each col
     dtypes_dict = {'exchange_date':'DATE'}
-    for col in cols_names: 
+    for col in currency_code_list: 
         dtypes_dict.update({col:'FLOAT'})
     
     # Create table
@@ -42,30 +40,34 @@ def create_table_currency_exchange(db_path:str = None,table_name:str = None,only
                              dtype=dtypes_dict
                             )
     conn_lite.close()
-    print(f'Table {table_name} created!')
+    update_currency.info(f'Table {table_name} created!')
+    
+    return empty_currency_df
 
 
 def last_exchange_date(db_path:str,table_name:str):
     """ Return the last date added in the db
     """
-    
+
     conn_lite = sqlite3.connect(db_path)
-    query = ('SELECT '
-             '   max(exchange_date) as last_update_date '
-             'FROM '
-             f'   {table_name}')
-    max_date_df = pd.read_sql_query(query, conn_lite) 
+    try:
+        query = ('SELECT '
+                '   max(exchange_date) as last_update_date '
+                'FROM '
+                f'   {table_name}')
+        max_date_df = pd.read_sql_query(query, conn_lite) 
+    except:
+        max_date_df = pd.DataFrame()
     conn_lite.close()
     
-    last_update_date_str = max_date_df.last_update_date[0]
-    
-    if last_update_date_str == None:
+    if max_date_df.empty:
         # one year ago - Historical rates are only available for last 1 year  
         last_update_date = (datetime.today() - timedelta(days=365) )#.strftime('%Y-%m-%d')
     else:
+        last_update_date_str = max_date_df.last_update_date[0]
         last_update_date = datetime.strptime(last_update_date_str, '%Y-%m-%d')
     
-    print(f'Last date updated in db: {last_update_date}')
+    update_currency.info(f'Last date updated in db: {last_update_date}')
     return last_update_date
 
 
@@ -78,19 +80,20 @@ def get_currency_exchange(db_path:str,table_name:str,based_currency:str,since_da
     
     t_start = perf_counter() # time counter
     # Retrieves the date of the last update in the table
-    if since_date == None:
+    if not since_date:
         since_date = last_exchange_date(db_path,table_name)
     
     if since_date.strftime('%Y-%m-%d') == datetime.today().strftime('%Y-%m-%d'):
-        print(f'Last Date Updated equal to Today (No new Recoeds)')
+        update_currency.info(f'Last Date Updated equal to Today (No new Recoeds)')
         return pd.DataFrame()
+
+    currency_df = check_table(db_path,table_name)  # "Base df" with columns only
 
     apiVersion = '1'
     endpoint = f'currencies/{based_currency}.json'
-
-    currency_df = create_table_currency_exchange(only_df = True) # "Base df" with columns only
     row_counter = 0
     request_date = None
+    currencies_dict = None
     while request_date != datetime.today().strftime('%Y-%m-%d'):
         since_date = (since_date + timedelta(days=1) ) # Sum one day
         request_date = since_date.strftime('%Y-%m-%d') # convert to str (request format)
@@ -101,16 +104,18 @@ def get_currency_exchange(db_path:str,table_name:str,based_currency:str,since_da
             request_date = (since_date - timedelta(days=1)).strftime('%Y-%m-%d') # convert to str (request format)
             url = f'https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@{apiVersion}/{request_date}/{endpoint}'
             req = requests.get(url)
-            currencies_dict = req.json()   
+            if req.status_code != 200:
+                raise Exception("Request Failed")
+            else:
+                currencies_dict = req.json()   
         else:
-            currencies_dict = req.json()   
-        
+            currencies_dict = req.json()  
+ 
         # Creates a list with the correct values of each currency for each column
         currency_values_list = [request_date] # first col refers to request date
         for col in currency_df.columns[1:]:
-            currency_code = re.findall('[^_]*',col)[0]
-            currency_value = currencies_dict.get(based_currency).get(currency_code)
-            if currency_value == None:
+            currency_value = currencies_dict.get(based_currency).get(col)
+            if not currency_value:
                 currency_values_list.append(np.nan)
             else:
                 currency_values_list.append(currency_value)
@@ -119,16 +124,38 @@ def get_currency_exchange(db_path:str,table_name:str,based_currency:str,since_da
         row_counter+=1
     
     t_end = perf_counter()
-    print(f'Df generated for {based_currency} based currency '
-          f'with {len(currency_df)} recorded days.\n{t_end - t_start:.2f}s')
+    update_currency.info(
+        f'Df generated for {based_currency} based currency '
+        f'with {len(currency_df)} recorded days.\n{t_end - t_start:.2f}s'
+        )
 
     return currency_df
+
+
+def check_table(db_path:str,table_name:str):
+    
+    conn_lite = sqlite3.connect(db_path)
+    try:
+        query = (f'SELECT * FROM {table_name} limit 1')
+        df = pd.read_sql_query(query, conn_lite) 
+    except:
+        df = create_table_currency_exchange(
+            db_path= db_path,
+            table_name = table_name
+            )
+
+    return df
 
 
 def insert_df_sqlite(df:pd.DataFrame, db_path:str,table_name:str):
     """ Insert a df into the specified db and table
     """
-    
+
+    table_sample = check_table(db_path,table_name)        
+    # Loc only cols that alredy exists
+    table_sample_cols = table_sample.columns.tolist()
+    df = df.loc[:,table_sample_cols]
+
     conn_lite = sqlite3.connect(db_path)
     df.to_sql(
         name = table_name,
@@ -138,44 +165,38 @@ def insert_df_sqlite(df:pd.DataFrame, db_path:str,table_name:str):
         method = 'multi'
         )
     conn_lite.close()
-    
-    
-def etl_pipeline(create_tables:bool = False):
-    """ ETL pipeline to update db
+    update_currency.info(f"{len(df)} rows inserted in db: {db_path} table: {table_name}")
+
+
+def run(db_path:str,based_currency:str,table_prefix:str)->None:
+    """Update table for especified based_currency
+    * Create table and update if table not exist.
+    """
+
+    table_name = table_prefix + "_based_currency"
+
+    # Update data
+    currency_df = get_currency_exchange(
+        db_path= db_path,
+        table_name = table_name,
+        based_currency= based_currency
+        )
+    # Update DB
+    if not currency_df.empty: # Update only if there are new values
+        insert_df_sqlite(
+            df = currency_df,
+            db_path = db_path,
+            table_name = table_name
+            )
+
+
+def etl_pipeline()->None:
+    """ETL pipeline to update db
     """ 
-
-    if create_tables == True:
-        # creates a table for dollar-based exchange rates (run ony once)
-        create_table_currency_exchange(
-            db_path= 'Database/currency_exchange_db.db',
-            table_name = 'dollar_based_currency')
-        # creates a table for euro-based exchange rates (run ony once)
-        create_table_currency_exchange(
-            db_path= 'Database/currency_exchange_db.db',
-            table_name = 'euro_based_currency')   
-
-    # Returns a df with all exchange rates since the last db update and update db (Dollar based)
-    dollar_currency_df = get_currency_exchange(
-        db_path= 'Database/currency_exchange_db.db',
-        table_name = 'dollar_based_currency',
-        based_currency= 'usd')
-    if len(dollar_currency_df) > 0: # Update only if there are new values
-        insert_df_sqlite(
-            df = dollar_currency_df,
-            db_path = 'Database/currency_exchange_db.db',
-            table_name = 'dollar_based_currency')
-    
-    # Returns a df with all exchange rates since the last db update and update db (Euro based)
-    euro_currency_df = get_currency_exchange(
-        db_path= 'Database/currency_exchange_db.db',
-        table_name = 'euro_based_currency',
-        based_currency= 'eur')
-    if len(euro_currency_df) > 0: # Update only if there are new values
-        insert_df_sqlite(
-            df = euro_currency_df,
-            db_path = 'Database/currency_exchange_db.db',
-            table_name = 'euro_based_currency')
-
-
-if __name__ == '__main__':
-    etl_pipeline(create_tables = True)
+    db_path = 'src/database/currency_exchange_db.db'
+    run(db_path = db_path,
+        based_currency = 'usd',
+        table_prefix = 'dollar')
+    run(db_path = db_path,
+        based_currency = 'eur',
+        table_prefix = 'euro')

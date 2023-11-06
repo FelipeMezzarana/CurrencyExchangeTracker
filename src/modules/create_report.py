@@ -30,7 +30,7 @@ def historical_line_plot(currency_df:pd.DataFrame,currency_code:str,save_path:st
     """   
     
     # Identifies base currency (dollar or euro)
-    if currency_df.usd_united_states_dollar.mean() == 1:
+    if currency_df.usd.mean() == 1:
         base_currency = 'Dollar'
     else:
         base_currency = 'Euro'
@@ -75,7 +75,7 @@ def historical_line_plot(currency_df:pd.DataFrame,currency_code:str,save_path:st
         label=r"Máx & Mín Values") 
     plt.legend(fontsize = 16,loc='best')
     plt.xlim(0,12)
-    
+    # Save to disk
     plt.savefig(save_path,facecolor= '#ffffff',edgecolor = '#ffffff',bbox_inches ='tight') 
     
 
@@ -183,18 +183,15 @@ def report_pipeline():
     """
     # Load Tables
     dollar_df = complete_table_df(
-        'Database/currency_exchange_db.db',
+        'src/database/currency_exchange_db.db',
         'dollar_based_currency')
     euro_df = complete_table_df(
-        'Database/currency_exchange_db.db',
+        'src/database/currency_exchange_db.db',
         'euro_based_currency')
     # Generate Excel
     generate_excel_report(
         dollar_df,
         euro_df,
         currency_list = ['dkk','brl','jpy','gbp','cny'], # Add desired currencies here
-        file_path = r'Reports/')
+        file_path = r'src/reports/')
     
-
-if __name__ == '__main__':
-    report_pipeline()

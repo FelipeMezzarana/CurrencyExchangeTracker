@@ -51,3 +51,13 @@ There are two ways to run the pipeline responsible for the three stages of the p
 The first and simplest is through the script [main.py](main.py) , running it from the CLI will execute all the steps in the pipeline.
 
 The second is option is to orchestrate a job with Airflow. the DAG [dag_currency_exchange_etl.py](dag_currency_exchange_etl.py) will also run all the steps in the pipeline, it will only be necessary to have an active Airflow server.
+
+# Usage 
+
+App:
+```shell
+# Run through Docker 
+ ./run.sh 
+# Run through Pytohn
+ python3 -m src.main 
+ ```
