@@ -61,3 +61,8 @@ App:
 # Run through Pytohn
  python3 -m src.main 
  ```
+
+Linting:
+```shell
+./run_linting.sh 
+```

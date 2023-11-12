@@ -1,9 +1,12 @@
-from airflow import DAG
-from airflow.operators.python import PythonOperator
-from airflow.operators.bash_operator  import BashOperator
+# Standard library
 from datetime import datetime, timedelta
+
+# First party
 import create_report
 import update_currency_exchange
+from airflow import DAG
+from airflow.operators.bash_operator import BashOperator
+from airflow.operators.python import PythonOperator
 
 default_args = {
   'owner': 'Felipe',
