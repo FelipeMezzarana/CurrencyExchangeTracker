@@ -196,15 +196,15 @@ def generate_excel_report(
         os.remove("euro" + currency_code + ".png")
 
 
-def report_pipeline(REPORT_CURRENCY_LIST, DB_PATH) -> None:
+def report_pipeline(report_currency_list:list, db_path:str) -> None:
     """Run necessary steps to generate a report in Excel."""
     # Load Tables
-    dollar_df = complete_table_df(DB_PATH, "dollar_based_currency")
-    euro_df = complete_table_df(DB_PATH, "euro_based_currency")
+    dollar_df = complete_table_df(db_path, "dollar_based_currency")
+    euro_df = complete_table_df(db_path, "euro_based_currency")
     # Generate Excel
     generate_excel_report(
         dollar_df,
         euro_df,
-        currency_list=REPORT_CURRENCY_LIST,
+        currency_list=report_currency_list,
         file_path=r"src/reports/",
     )

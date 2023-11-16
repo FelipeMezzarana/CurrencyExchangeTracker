@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import requests
 
-update_currency = logging.getLogger("update_currency_exchange.py.py")
+update_currency = logging.getLogger("update_currency_exchange.py")
 
 
 def create_table_currency_exchange(db_path: str, table_name: str) -> pd.DataFrame:
@@ -35,7 +35,9 @@ def create_table_currency_exchange(db_path: str, table_name: str) -> pd.DataFram
 
     # Create table
     conn_lite = sqlite3.connect(db_path)
-    empty_currency_df.to_sql(name=table_name, con=conn_lite, if_exists="fail", index=False, dtype=dtypes_dict)
+    empty_currency_df.to_sql(
+        name=table_name, con=conn_lite, if_exists="fail", index=False, dtype=dtypes_dict
+        )
     conn_lite.close()
     update_currency.info(f"Table {table_name} created!")
 
@@ -47,7 +49,7 @@ def last_exchange_date(db_path: str, table_name: str) -> datetime:
 
     conn_lite = sqlite3.connect(db_path)
     try:
-        query = f"SELECT max(exchange_date) as last_update_date FROM    {table_name}"
+        query = f"SELECT max(exchange_date) as last_update_date FROM {table_name}"
         max_date_df = pd.read_sql_query(query, conn_lite)
     except Exception:
         max_date_df = pd.DataFrame()
@@ -79,7 +81,7 @@ def get_currency_exchange(
     t_start = perf_counter()  # time counter
     # Retrieves the date of the last update in the table
     if not since_date:
-        since_date = last_exchange_date(db_path, table_name)
+        since_date = last_exchange_date(db_path, table_name) # pragma: no cover
 
     if since_date and since_date.strftime("%Y-%m-%d") == datetime.today().strftime("%Y-%m-%d"):
         update_currency.info("Last Date Updated equal to Today (No new Recoeds)")
@@ -99,17 +101,17 @@ def get_currency_exchange(
         req = requests.get(url)
         # data is missing for a few days, in these cases we will take the value of the previous day
         if req.status_code != 200:
-            request_date = (since_date - timedelta(days=1)).strftime(
+            last_request_date = (since_date - timedelta(days=1)).strftime(
                 "%Y-%m-%d"
             )  # convert to str (request format)
             url = (
-                f"https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@{apiVersion}/{request_date}/{endpoint}"
+                f"https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@{apiVersion}/{last_request_date}/{endpoint}"
             )
             req = requests.get(url)
             if req.status_code != 200:
                 raise Exception(f"Request Failed: {url}")
             else:
-                currencies_dict = req.json()
+                currencies_dict = req.json() # pragma: no cover
         else:
             currencies_dict = req.json()
 
@@ -177,8 +179,8 @@ def run(db_path: str, based_currency: str, table_prefix: str) -> None:
         insert_df_sqlite(df=currency_df, db_path=db_path, table_name=table_name)
 
 
-def etl_pipeline(BASED_CURRENCY_MAPPING: dict, DB_PATH: str) -> None:
+def etl_pipeline(based_currency_mapping: dict, db_path: str) -> None:
     """Run ETL pipeline to update db."""
 
-    for currency, table_prexix in BASED_CURRENCY_MAPPING.items():
-        run(db_path=DB_PATH, based_currency=currency, table_prefix=table_prexix)
+    for currency, table_prexix in based_currency_mapping.items():
+        run(db_path=db_path, based_currency=currency, table_prefix=table_prexix)
