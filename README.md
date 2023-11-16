@@ -66,3 +66,8 @@ Linting:
 ```shell
 ./run_linting.sh 
 ```
+
+Tests:
+```shell
+./run_unit_tests.sh 
+```
