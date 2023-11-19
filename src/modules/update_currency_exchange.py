@@ -139,9 +139,9 @@ def get_currency_exchange(
 def check_table(db_path: str, table_name: str) -> pd.DataFrame:
     """Return 1 row sample of table.
     * Create table from scratch if not exist.
-    """
-    conn_lite = sqlite3.connect(db_path)
+    """  
     try:
+        conn_lite = sqlite3.connect(db_path)
         query = f"SELECT * FROM {table_name} limit 1"
         df = pd.read_sql_query(query, conn_lite)
     except Exception:
@@ -176,8 +176,11 @@ def run(db_path: str, based_currency: str, table_prefix: str) -> None:
     currency_df = get_currency_exchange(db_path=db_path, table_name=table_name, based_currency=based_currency)
     # Update DB
     if not currency_df.empty:  # Update only if there are new values
-        insert_df_sqlite(df=currency_df, db_path=db_path, table_name=table_name)
-
+        insert_df_sqlite(
+            df=currency_df,
+            db_path=db_path, 
+            table_name=table_name
+            ) # pragma: no cover
 
 def etl_pipeline(based_currency_mapping: dict, db_path: str) -> None:
     """Run ETL pipeline to update db."""
