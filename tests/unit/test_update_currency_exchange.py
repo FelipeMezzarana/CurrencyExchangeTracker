@@ -5,7 +5,7 @@ import pandas as pd
 from datetime import datetime,timedelta
 from typing import Optional
 import json
-
+from src import settings
 
 class MockRequests:
     """Mock requests.get(url)
@@ -16,15 +16,14 @@ class MockRequests:
 
     def json(self):
         return self.json_file
-
-    
-
+        
 class TestUodateCurrencyExchange(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Mock libs used several times.
         * sqlite3 connection.
         * pandas (for sql operations)
+        * first party func check_table (return sample df)
         """
 
         cls.mock_sqlite3_conn= Mock()
@@ -33,10 +32,16 @@ class TestUodateCurrencyExchange(unittest.TestCase):
         cls.mock_sqlite3_conn.close.return_value = None
 
         cls.pandas_sql_mock = Mock()
+        cls.pandas_sql_mock.read_sql_query.return_value = pd.DataFrame()
         cls.pandas_sql_mock.to_sql.return_value= None
+
+        cls.mock_check_table = Mock()
+        cls.table_sample = pd.read_csv("tests/unit/sample_data/usd_based_currency_sample.csv")
+        cls.mock_check_table.return_value = cls.table_sample.drop(cls.table_sample.index) # Drop data, keep structure
         
+
     def test_create_table_currency_exchange(self)-> None:
-        """Test create_table_currency_exchange func.
+        """Test update_currency_exchange.create_table_currency_exchange.
         """
         
         with (patch("src.modules.update_currency_exchange.sqlite3", self.mock_sqlite3),
@@ -72,7 +77,7 @@ class TestUodateCurrencyExchange(unittest.TestCase):
         
 
     def test_get_currency_exchange(self)->None:
-        """Test get_currency_exchange func.
+        """Test update_currency_exchange.get_currency_exchange.
         """
 
         mock_requests= Mock()
@@ -80,21 +85,17 @@ class TestUodateCurrencyExchange(unittest.TestCase):
         request_sample_json = open("tests/unit/sample_data/currencies_request_sample.json", "r")
         request_sample = json.load(request_sample_json)
         mock_requests.get.return_value = MockRequests(status_code = 200,json_file = request_sample)
-        
-        mock_check_table = Mock()
-        table_sample = pd.read_csv("tests/unit/sample_data/usd_based_currency_sample.csv")
-        mock_check_table.return_value = table_sample.drop(table_sample.index) # Drop data, keep structure
 
         # Ususal case
         with (patch("src.modules.update_currency_exchange.requests", mock_requests),
-              patch("src.modules.update_currency_exchange.check_table", mock_check_table)):
+              patch("src.modules.update_currency_exchange.check_table", self.mock_check_table)):
             currency_df = update_currency_exchange.get_currency_exchange(
                 db_path= "db_path",
                 table_name = "table_name",
                 based_currency = "usd",
                 since_date = (datetime.today() - timedelta(days=1))
                 )
-            self.assertEqual(currency_df.columns.tolist(), table_sample.columns.tolist())
+            self.assertEqual(currency_df.columns.tolist(), self.table_sample.columns.tolist())
     
         # Requesting with db alredy updated
         currency_df = update_currency_exchange.get_currency_exchange(
@@ -111,7 +112,7 @@ class TestUodateCurrencyExchange(unittest.TestCase):
         # We will raise an error only if we have two missing days.
         mock_requests.get.return_value = MockRequests(status_code = 503,json_file = None)
         with (patch("src.modules.update_currency_exchange.requests", mock_requests),
-                patch("src.modules.update_currency_exchange.check_table", mock_check_table)):
+                patch("src.modules.update_currency_exchange.check_table", self.mock_check_table)):
             self.assertRaises(
                 Exception,
                 update_currency_exchange.get_currency_exchange,
@@ -121,13 +122,50 @@ class TestUodateCurrencyExchange(unittest.TestCase):
                 (datetime.today() - timedelta(days=1))
                 )
 
+    def test_check_table(self)->None:
+        """Test update_currency_exchange.check_table.
+        """
 
+        with (patch("src.modules.update_currency_exchange.sqlite3", self.mock_sqlite3),
+                patch("src.modules.update_currency_exchange.pd", self.pandas_sql_mock)):
+            sample_df = update_currency_exchange.check_table("db_path","table_name")
+            self.assertIsInstance(sample_df,pd.DataFrame)
 
+        mock_create_table = Mock()
+        mock_create_table.return_value = pd.DataFrame()
+        with patch("src.modules.update_currency_exchange.create_table_currency_exchange", mock_create_table):
+            sample_df = update_currency_exchange.check_table("db_path","table_name")     
+            self.assertIsInstance(sample_df,pd.DataFrame)
 
+    def test_insert_df_sqlite(self)->None:
+        """Test update_currency_exchange.insert_df_sqlite 
+        """
+        mock_to_sql = Mock()
+        with (patch("src.modules.update_currency_exchange.sqlite3", self.mock_sqlite3),
+              patch("src.modules.update_currency_exchange.pd.DataFrame.to_sql", mock_to_sql),
+              patch("src.modules.update_currency_exchange.check_table", self.mock_check_table)):
+            update_currency_exchange.insert_df_sqlite(
+                df =self.table_sample,
+                db_path= 'db_path',
+                table_name = 'table_name'
+                )
+            
+    def test_etl(self)->None:
+        """Testes run and etl_pipeline.
+        """
 
+        mock_get_currency_exchange = Mock()
+        mock_get_currency_exchange.return_value = self.table_sample
+        mock_insert_df_sqlite = Mock()
 
-
-
+        with (patch("src.modules.update_currency_exchange.get_currency_exchange", mock_get_currency_exchange),
+              patch("src.modules.update_currency_exchange.insert_df_sqlite", mock_insert_df_sqlite)):
+            update_currency_exchange.etl_pipeline(
+                based_currency_mapping = settings.BASED_CURRENCY_MAPPING,
+                db_path = 'db_path'
+                )
+        
+        
 
 
 
