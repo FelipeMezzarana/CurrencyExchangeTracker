@@ -20,6 +20,7 @@ def run():
     # Generates Excel report
     create_report.report_pipeline(settings.REPORT_CURRENCY_LIST, settings.DB_PATH)
 
+    return True
 
 if __name__ == "__main__":
     run()

@@ -16,7 +16,6 @@ update_currency = logging.getLogger("update_currency_exchange.py")
 def create_table_currency_exchange(db_path: str, table_name: str) -> pd.DataFrame:
     """Create an empty table in a SQLite DB with a column for each currency available in the API.
     * API: https://github.com/fawazahmed0/currency-api
-    * If only_df == True return the df without creating a table in the db
     """
 
     # Retrieve a json with all available currencies

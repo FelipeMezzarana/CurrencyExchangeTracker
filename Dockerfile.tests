@@ -11,4 +11,4 @@ WORKDIR /repository
 
 
 # Run unit tests by default
-CMD ["python3", "-m", "pytest", "tests/unit", "--cov", "src", "--cov-config", "tox.ini", "--cov-report", "html", "--cov-report", "term"]
+CMD ["python3", "-m", "pytest", "tests/unit", "-s", "--cov", "src", "--cov-config", "tox.ini", "--cov-report", "html", "--cov-report", "term"]

@@ -10,16 +10,13 @@ class TestMain(unittest.TestCase):
         """
         pass    
 
-    def test_create_table_currency_exchange(self)-> None:
+    @patch("src.main.update_currency_exchange.etl_pipeline")
+    @patch("src.main.create_report.report_pipeline")
+    def test_create_table_currency_exchange(self,m1,m2)-> None:
         """Test main.run.
         """
-        
-        mock_etl_pipeline = Mock()
-        mock_report_pipeline = Mock()
-
-        with (patch("src.main.update_currency_exchange.etl_pipeline", mock_etl_pipeline),
-            patch("src.main.create_report.report_pipeline", mock_report_pipeline)):
-            main.run()
+        is_successful = main.run()
+        self.assertTrue(is_successful)
 
         
 

@@ -39,14 +39,25 @@ class TestUodateCurrencyExchange(unittest.TestCase):
         cls.table_sample = pd.read_csv("tests/unit/sample_data/usd_based_currency_sample.csv")
         cls.mock_check_table.return_value = cls.table_sample.drop(cls.table_sample.index) # Drop data, keep structure
         
-
-    def test_create_table_currency_exchange(self)-> None:
+    @patch("src.modules.update_currency_exchange.sqlite3")
+    @patch("src.modules.update_currency_exchange.requests")
+    def test_create_table_currency_exchange(self, mock_requests, mock_sqlite3)-> None:
         """Test update_currency_exchange.create_table_currency_exchange.
         """
-        
-        with (patch("src.modules.update_currency_exchange.sqlite3", self.mock_sqlite3),
-            patch("src.modules.update_currency_exchange.pd", self.pandas_sql_mock)):
-            update_currency_exchange.create_table_currency_exchange("db_path","table_name")
+
+        all_currency_sample = {
+            'afn': 'Afghan Afghani',
+            'agix': 'SingularityNET',
+            'agld': 'Adventure Gold',
+            'aioz': 'Aioz Network'
+            } # Small sample of expected result
+        mock_requests.get.return_value = MockRequests(status_code = 200,json_file = all_currency_sample)
+
+        empty_currency_df = update_currency_exchange.create_table_currency_exchange("db_path","table_name")
+        self.assertEqual(
+            empty_currency_df.columns.tolist(),
+            ["exchange_date", 'afn', 'agix', 'agld', 'aioz']
+            )
 
     def test_last_exchange_date(self)-> None:
         """Test last_exchange_date func.
@@ -75,7 +86,6 @@ class TestUodateCurrencyExchange(unittest.TestCase):
             last_update_date.strftime("%Y-%m-%d"), # Removing millisecond granularity
             expected_last_update_date.strftime("%Y-%m-%d"))
         
-
     def test_get_currency_exchange(self)->None:
         """Test update_currency_exchange.get_currency_exchange.
         """
@@ -137,33 +147,29 @@ class TestUodateCurrencyExchange(unittest.TestCase):
             sample_df = update_currency_exchange.check_table("db_path","table_name")     
             self.assertIsInstance(sample_df,pd.DataFrame)
 
-    def test_insert_df_sqlite(self)->None:
+    @patch("src.modules.update_currency_exchange.sqlite3")
+    @patch("src.modules.update_currency_exchange.pd.DataFrame.to_sql")
+    @patch("src.modules.update_currency_exchange.check_table")
+    def test_insert_df_sqlite(self,m1, m2, m3)->None:
         """Test update_currency_exchange.insert_df_sqlite 
         """
-        mock_to_sql = Mock()
-        with (patch("src.modules.update_currency_exchange.sqlite3", self.mock_sqlite3),
-              patch("src.modules.update_currency_exchange.pd.DataFrame.to_sql", mock_to_sql),
-              patch("src.modules.update_currency_exchange.check_table", self.mock_check_table)):
-            update_currency_exchange.insert_df_sqlite(
-                df =self.table_sample,
-                db_path= 'db_path',
-                table_name = 'table_name'
-                )
-            
-    def test_etl(self)->None:
+        update_currency_exchange.insert_df_sqlite(
+            df =self.table_sample,
+            db_path= 'db_path',
+            table_name = 'table_name'
+            )
+    @patch("src.modules.update_currency_exchange.get_currency_exchange")
+    @patch("src.modules.update_currency_exchange.insert_df_sqlite")      
+    def test_etl(self, m1, mock_get_currency_exchange)->None:
         """Testes run and etl_pipeline.
         """
 
-        mock_get_currency_exchange = Mock()
         mock_get_currency_exchange.return_value = self.table_sample
-        mock_insert_df_sqlite = Mock()
 
-        with (patch("src.modules.update_currency_exchange.get_currency_exchange", mock_get_currency_exchange),
-              patch("src.modules.update_currency_exchange.insert_df_sqlite", mock_insert_df_sqlite)):
-            update_currency_exchange.etl_pipeline(
-                based_currency_mapping = settings.BASED_CURRENCY_MAPPING,
-                db_path = 'db_path'
-                )
+        update_currency_exchange.etl_pipeline(
+            based_currency_mapping = settings.BASED_CURRENCY_MAPPING,
+            db_path = 'db_path'
+            )
         
         
 
