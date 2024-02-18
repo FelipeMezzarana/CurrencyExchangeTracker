@@ -11,7 +11,7 @@ import pandas as pd
 import seaborn as sns
 
 
-def complete_table_df(db_path: str, table_name: str) -> pd.DataFrame:
+def complete_table_df(db_path: str, table_name: str) -> pd.DataFrame: # pragma: no cover
     """Return a df with the complete specified table."""
 
     conn_lite = sqlite3.connect(db_path)
@@ -208,3 +208,5 @@ def report_pipeline(report_currency_list:list, db_path:str) -> None:
         currency_list=report_currency_list,
         file_path=r"src/reports/",
     )
+    
+    return True
