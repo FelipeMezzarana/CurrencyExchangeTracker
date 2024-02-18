@@ -34,9 +34,7 @@ def create_table_currency_exchange(db_path: str, table_name: str) -> pd.DataFram
 
     # Create table
     conn_lite = sqlite3.connect(db_path)
-    empty_currency_df.to_sql(
-        name=table_name, con=conn_lite, if_exists="fail", index=False, dtype=dtypes_dict
-        )
+    empty_currency_df.to_sql(name=table_name, con=conn_lite, if_exists="fail", index=False, dtype=dtypes_dict)
     conn_lite.close()
     update_currency.info(f"Table {table_name} created!")
 
@@ -80,7 +78,7 @@ def get_currency_exchange(
     t_start = perf_counter()  # time counter
     # Retrieves the date of the last update in the table
     if not since_date:
-        since_date = last_exchange_date(db_path, table_name) # pragma: no cover
+        since_date = last_exchange_date(db_path, table_name)  # pragma: no cover
 
     if since_date and since_date.strftime("%Y-%m-%d") == datetime.today().strftime("%Y-%m-%d"):
         update_currency.info("Last Date Updated equal to Today (No new Recoeds)")
@@ -104,13 +102,14 @@ def get_currency_exchange(
                 "%Y-%m-%d"
             )  # convert to str (request format)
             url = (
-                f"https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@{apiVersion}/{last_request_date}/{endpoint}"
+                "https://cdn.jsdelivr.net/gh/fawazahmed0/"
+                f"currency-api@{apiVersion}/{last_request_date}/{endpoint}"
             )
             req = requests.get(url)
             if req.status_code != 200:
                 raise Exception(f"Request Failed: {url}")
             else:
-                currencies_dict = req.json() # pragma: no cover
+                currencies_dict = req.json()  # pragma: no cover
         else:
             currencies_dict = req.json()
 
@@ -138,7 +137,7 @@ def get_currency_exchange(
 def check_table(db_path: str, table_name: str) -> pd.DataFrame:
     """Return 1 row sample of table.
     * Create table from scratch if not exist.
-    """  
+    """
     try:
         conn_lite = sqlite3.connect(db_path)
         query = f"SELECT * FROM {table_name} limit 1"
@@ -175,11 +174,8 @@ def run(db_path: str, based_currency: str, table_prefix: str) -> None:
     currency_df = get_currency_exchange(db_path=db_path, table_name=table_name, based_currency=based_currency)
     # Update DB
     if not currency_df.empty:  # Update only if there are new values
-        insert_df_sqlite(
-            df=currency_df,
-            db_path=db_path, 
-            table_name=table_name
-            ) # pragma: no cover
+        insert_df_sqlite(df=currency_df, db_path=db_path, table_name=table_name)  # pragma: no cover
+
 
 def etl_pipeline(based_currency_mapping: dict, db_path: str) -> None:
     """Run ETL pipeline to update db."""

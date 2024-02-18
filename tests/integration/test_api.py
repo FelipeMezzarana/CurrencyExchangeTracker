@@ -4,8 +4,10 @@ import unittest
 from datetime import datetime, timedelta
 
 # Third party
-import requests
 import pandas as pd
+import requests
+
+# First party
 from src import settings
 
 

@@ -1,11 +1,17 @@
-import unittest
-from src.modules import update_currency_exchange  
-from unittest.mock import Mock, patch
-import pandas as pd
-from datetime import datetime,timedelta
-from typing import Optional
+# Standard library
 import json
+import unittest
+from datetime import datetime, timedelta
+from typing import Optional
+from unittest.mock import Mock, patch
+
+# Third party
+import pandas as pd
+
+# First party
 from src import settings
+from src.modules import update_currency_exchange
+
 
 class MockRequests:
     """Mock requests.get(url)
@@ -170,9 +176,3 @@ class TestUodateCurrencyExchange(unittest.TestCase):
             based_currency_mapping = settings.BASED_CURRENCY_MAPPING,
             db_path = 'db_path'
             )
-        
-        
-
-
-
-

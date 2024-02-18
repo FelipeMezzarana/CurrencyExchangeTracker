@@ -1,11 +1,16 @@
-import unittest
-from src.modules import create_report  
-from unittest.mock import Mock, patch
-import pandas as pd
-from datetime import datetime
+# Standard library
 import os
+import unittest
+from datetime import datetime
+from unittest.mock import Mock, patch
 
-        
+# Third party
+import pandas as pd
+
+# First party
+from src.modules import create_report
+
+
 class TestCreateReport(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -49,4 +54,3 @@ class TestCreateReport(unittest.TestCase):
 
         self.assertEqual(currency_name,"Dkk")
         self.assertEqual(infos_df["Dollar Based Rate"]["Last Year Range"],"6.62 - 7.25")
-    

@@ -1,8 +1,11 @@
+# Standard library
 import unittest
-from src import main  
 from unittest.mock import Mock, patch
 
-        
+# First party
+from src import main
+
+
 class TestMain(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -17,9 +20,3 @@ class TestMain(unittest.TestCase):
         """
         is_successful = main.run()
         self.assertTrue(is_successful)
-
-        
-
-
-
-

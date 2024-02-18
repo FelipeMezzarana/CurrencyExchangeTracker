@@ -1,6 +1,6 @@
 # First party
-from src.modules import create_report, update_currency_exchange
 from src import settings
+from src.modules import create_report, update_currency_exchange
 
 
 def run():
@@ -22,6 +22,6 @@ def run():
 
     return True
 
+
 if __name__ == "__main__":
     run()
-    
