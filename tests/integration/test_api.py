@@ -5,6 +5,8 @@ from datetime import datetime, timedelta
 
 # Third party
 import requests
+import pandas as pd
+from src import settings
 
 
 class TestCurrencyRatesAPI(unittest.TestCase):
@@ -20,6 +22,9 @@ class TestCurrencyRatesAPI(unittest.TestCase):
         request_date = "latest"
         url = f"https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@{apiVersion}/{request_date}/{endpoint}"
         cls.resp = requests.get(url)
+
+        # Sample table (empty) of current db
+        cls.table_sample = pd.read_csv("tests/unit/sample_data/usd_based_currency_sample.csv")
 
     def test_check_api_connection(self):
         """Check if API connection is available"""
@@ -37,10 +42,8 @@ class TestCurrencyRatesAPI(unittest.TestCase):
 
         self.assertIn(
             "currency_exchange_db.db",
-            os.listdir("Database"),
-            "Attempt to connect to database failed"
-            "\nDatabase must be initialized with Docker using the file:"
-            "\nLinkfire_data_engineer_task/database/volume/docker-compose.yaml",
+            os.listdir("src/database"),
+            "Attempt to connect to database failed. "
         )
 
     def test_latest_date(self):
@@ -56,16 +59,25 @@ class TestCurrencyRatesAPI(unittest.TestCase):
 
         self.assertIn(latest_date, [today, today_lag1])
 
-    def test_qty_currencies(self):
-        """Check quantity of currencies the API returned"""
+    def test_currencies(self):
+        """Check if latest API call has all currencies used in current DB.
+        * Note that we are basing this test on the sample:
+            tests/unit/sample_data/usd_based_currency_sample.csv
+        If the API adds new currencies, when creating a new db, the sample files must be updated
+        as the db will include all currencies available at the time of its creation. 
 
-        qty_currencies = len(self.resp.json().get("usd"))
-        self.assertEqual(
-            qty_currencies,
-            272,
-            "the db contains columns for 272 currencies,"
-            " if more are added in the API, adaptations in the code may be required",
-        )
+        * We will accept up to 5 missing exchange rates, 
+        as we have a number of virtual currencies that may cease to exist.
+        """
+ 
+        currencies_rate = self.resp.json().get("usd")
+        available_currencies = list(currencies_rate.keys())
+        available_currencies.append("exchange_date") # Column created after API call
+        required_currencies = settings.REPORT_CURRENCY_LIST
+
+        for currency in required_currencies:
+            self.assertIn(currency,available_currencies)
+
 
     def save(self):
         """Save a log file"""
