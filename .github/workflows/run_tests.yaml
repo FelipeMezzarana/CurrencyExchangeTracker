@@ -30,7 +30,7 @@ jobs:
         run: docker run --network=host --volume="$PWD/coverage/":/var/coverage/ app_unit_tests
 
       - name: build-integration-test-image
-        run: docker build --file Dockerfile.integration_git --tag app_integration_tests .
+        run: docker build --file Dockerfile.integration_tests --tag app_integration_tests .
 
       - name: run-integration-tests
         run: docker run app_integration_tests
