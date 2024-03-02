@@ -164,6 +164,7 @@ class TestUodateCurrencyExchange(unittest.TestCase):
             db_path= 'db_path',
             table_name = 'table_name'
             )
+    
     @patch("src.modules.update_currency_exchange.get_currency_exchange")
     @patch("src.modules.update_currency_exchange.insert_df_sqlite")      
     def test_etl(self, m1, mock_get_currency_exchange)->None:

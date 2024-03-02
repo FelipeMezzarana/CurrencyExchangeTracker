@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import requests
 
+# Local
 from .. import settings
 
 update_currency = logging.getLogger("update_currency_exchange.py")
@@ -95,7 +96,7 @@ def get_currency_exchange(
     currencies_dict = None
     while request_date != datetime.today().strftime("%Y.%-m.%-d"):
         since_date = since_date + timedelta(days=1)  # Sum one day
-        request_date = since_date.strftime("%Y.%m.%d")  # convert to str (request format)
+        request_date = since_date.strftime("%Y.%-m.%-d")  # convert to str (request format)
 
         url = f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{request_date}/{apiVersion}/{endpoint}"
         req = requests.get(url)
