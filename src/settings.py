@@ -8,6 +8,7 @@ logging.basicConfig(
     level=logging.INFO,
 )
 
+API_VERSION = "v1"
 # SqlLite db path
 DB_PATH = "src/database/currency_exchange_db.db"
 # Add new tables with different based currency here

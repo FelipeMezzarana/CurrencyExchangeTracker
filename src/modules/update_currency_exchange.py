@@ -10,6 +10,8 @@ import numpy as np
 import pandas as pd
 import requests
 
+from .. import settings
+
 update_currency = logging.getLogger("update_currency_exchange.py")
 
 
@@ -19,7 +21,7 @@ def create_table_currency_exchange(db_path: str, table_name: str) -> pd.DataFram
     """
 
     # Retrieve a json with all available currencies
-    url_all_currencies = "https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/latest/currencies.json"
+    url_all_currencies = "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies.json"
     resp = requests.get(url_all_currencies)
     all_currencies_json = resp.json()
 
@@ -86,24 +88,25 @@ def get_currency_exchange(
 
     currency_df = check_table(db_path, table_name)  # "Base df" with columns only
 
-    apiVersion = "1"
+    apiVersion = settings.API_VERSION
     endpoint = f"currencies/{based_currency}.json"
     row_counter = 0
     request_date = None
     currencies_dict = None
-    while request_date != datetime.today().strftime("%Y-%m-%d"):
+    while request_date != datetime.today().strftime("%Y.%-m.%-d"):
         since_date = since_date + timedelta(days=1)  # Sum one day
-        request_date = since_date.strftime("%Y-%m-%d")  # convert to str (request format)
-        url = f"https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@{apiVersion}/{request_date}/{endpoint}"
+        request_date = since_date.strftime("%Y.%m.%d")  # convert to str (request format)
+
+        url = f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{request_date}/{apiVersion}/{endpoint}"
         req = requests.get(url)
         # data is missing for a few days, in these cases we will take the value of the previous day
         if req.status_code != 200:
             last_request_date = (since_date - timedelta(days=1)).strftime(
-                "%Y-%m-%d"
+                "%Y.%-m.%-d"
             )  # convert to str (request format)
             url = (
-                "https://cdn.jsdelivr.net/gh/fawazahmed0/"
-                f"currency-api@{apiVersion}/{last_request_date}/{endpoint}"
+                "https://cdn.jsdelivr.net/npm/@fawazahmed0/"
+                f"currency-api@{last_request_date}/{apiVersion}/{endpoint}"
             )
             req = requests.get(url)
             if req.status_code != 200:

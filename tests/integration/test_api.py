@@ -19,12 +19,11 @@ class TestCurrencyRatesAPI(unittest.TestCase):
         """Loads an API request as a Class attribute"""
 
         # Requests the most recent exchange rate available
-        apiVersion = "1"
+        apiVersion = settings.API_VERSION
         endpoint = "currencies/usd.json"
         request_date = "latest"
-        url = f"https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@{apiVersion}/{request_date}/{endpoint}"
+        url = f"https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@{request_date}/{apiVersion}/{endpoint}"
         cls.resp = requests.get(url)
-
         # Sample table (empty) of current db
         cls.table_sample = pd.read_csv("tests/unit/sample_data/usd_based_currency_sample.csv")
 
